@@ -4,3 +4,6 @@ sqlite-utils
 pydantic
 pytest
 python-dotenv
+httpx
+redis
+uvicorn[standard]

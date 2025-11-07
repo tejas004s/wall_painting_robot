@@ -1,4 +1,3 @@
-/* General layout */
 body {
   font-family: Arial, sans-serif;
   background-color: #f4f4f4;
@@ -11,7 +10,6 @@ h1 {
   color: #333;
 }
 
-/* Form styling */
 form {
   background-color: #fff;
   padding: 20px;
@@ -32,7 +30,6 @@ form input[type="number"] {
   margin-left: 5px;
 }
 
-/* Obstacle editor */
 #obstacleEditor {
   margin-top: 20px;
 }
@@ -70,7 +67,6 @@ form input[type="number"] {
   background-color: #e60000;
 }
 
-/* Buttons */
 button {
   margin: 5px;
   padding: 8px 14px;
@@ -98,14 +94,12 @@ button[type="button"]:hover {
   background-color: #444;
 }
 
-/* Canvas */
-canvas {
+.simulation-canvas {
   border: 1px solid #333;
   margin-top: 20px;
   background-color: #fff;
 }
 
-/* Metrics display */
 #metricsDisplay {
   margin-top: 20px;
   font-size: 16px;

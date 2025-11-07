@@ -1,8 +1,27 @@
-const canvas = document.getElementById("wallCanvas");
-const ctx = canvas.getContext("2d");
-
 const scaleX = 80;
 const scaleY = 80;
+
+const socket = new WebSocket("ws://localhost:8000/ws");
+socket.onopen = () => console.log("✅ Connected");
+socket.onerror = (e) => console.error("❌ WebSocket error", e);
+
+socket.onmessage = async (event) => {
+  const data = JSON.parse(event.data);
+  console.log("📡 Received trajectory update:", data);
+
+  const res = await fetch(`http://localhost:8000/api/trajectories/${data.trajectory_id}`);
+  const waypoints = await res.json();
+
+  const { canvas, ctx } = createSimulationCanvas(data.metadata.width, data.metadata.height);
+  drawObstaclesOnCanvas(ctx, []); // Extend if obstacle metadata is added
+  animatePath(waypoints, [], ctx, getRandomColor());
+
+  document.getElementById("metricsDisplay").innerHTML += `
+    <h3>Live Update</h3>
+    <p>ID: ${data.trajectory_id}</p>
+    <p>Duration: ${data.metadata.duration.toFixed(2)}s</p>
+  `;
+};
 
 document.getElementById("configForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -32,9 +51,9 @@ document.getElementById("configForm").addEventListener("submit", async (e) => {
     if (!response.ok) throw new Error("Backend error");
 
     const waypoints = await response.json();
-    drawWall(width, height);
-    drawObstacles(obstacles);
-    animatePath(waypoints, obstacles);
+    const { canvas, ctx } = createSimulationCanvas(width, height);
+    drawObstaclesOnCanvas(ctx, obstacles);
+    animatePath(waypoints, obstacles, ctx, getRandomColor());
 
     const pathLength = waypoints.reduce((sum, wp, i) => {
       if (i === 0) return sum;
@@ -57,14 +76,73 @@ document.getElementById("configForm").addEventListener("submit", async (e) => {
   }
 });
 
-function drawWall(width, height) {
+function createSimulationCanvas(width, height) {
+  const canvas = document.createElement("canvas");
   canvas.width = width * scaleX;
   canvas.height = height * scaleY;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvas.className = "simulation-canvas";
+
+  const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = "#000000";
   ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+  document.getElementById("canvasContainer").appendChild(canvas);
+  return { canvas, ctx };
+}
+
+function drawObstaclesOnCanvas(ctx, obstacles) {
+  ctx.fillStyle = "#ff4d4d";
+  obstacles.forEach(obs => {
+    ctx.fillRect(
+      obs.x * scaleX,
+      ctx.canvas.height - (obs.y + obs.height) * scaleY,
+      obs.width * scaleX,
+      obs.height * scaleY
+    );
+  });
+}
+
+function animatePath(waypoints, obstacles, ctx, color = "blue") {
+  let i = 1;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+
+  function step() {
+    if (i >= waypoints.length) return;
+
+    const prev = waypoints[i - 1];
+    const curr = waypoints[i];
+
+    const x1 = prev.x * scaleX;
+    const y1 = ctx.canvas.height - prev.y * scaleY;
+    const x2 = curr.x * scaleX;
+    const y2 = ctx.canvas.height - curr.y * scaleY;
+
+    if (!isInsideObstacle(prev.x, prev.y, obstacles) && !isInsideObstacle(curr.x, curr.y, obstacles)) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    if (!isInsideObstacle(curr.x, curr.y, obstacles)) {
+      drawRobot(ctx, x2, y2);
+    }
+
+    i++;
+    setTimeout(step, 100);
+  }
+
+  step();
+}
+
+function drawRobot(ctx, x, y) {
+  ctx.fillStyle = "#00cc66";
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, 2 * Math.PI);
+  ctx.fill();
 }
 
 function addObstacle(x = 0, y = 0, w = 1, h = 1) {
@@ -147,20 +225,8 @@ function previewObstacles() {
   const height = parseFloat(document.getElementById("wallHeight").value);
   const obstacles = getObstaclesFromEditor();
 
-  drawWall(width, height);
-  drawObstacles(obstacles);
-}
-
-function drawObstacles(obstacles) {
-  ctx.fillStyle = "#ff4d4d";
-  obstacles.forEach(obs => {
-    ctx.fillRect(
-      obs.x * scaleX,
-      canvas.height - (obs.y + obs.height) * scaleY,
-      obs.width * scaleX,
-      obs.height * scaleY
-    );
-  });
+  const { canvas, ctx } = createSimulationCanvas(width, height);
+  drawObstaclesOnCanvas(ctx, obstacles);
 }
 
 function isInsideObstacle(x, y, obstacles) {
@@ -172,46 +238,12 @@ function isInsideObstacle(x, y, obstacles) {
   );
 }
 
-function animatePath(waypoints, obstacles) {
-  let i = 1;
-  ctx.strokeStyle = "blue";
-  ctx.lineWidth = 2;
-
-  function step() {
-    if (i >= waypoints.length) return;
-
-    const prev = waypoints[i - 1];
-    const curr = waypoints[i];
-
-    const x1 = prev.x * scaleX;
-    const y1 = canvas.height - prev.y * scaleY;
-    const x2 = curr.x * scaleX;
-    const y2 = canvas.height - curr.y * scaleY;
-
-    const prevInside = isInsideObstacle(prev.x, prev.y, obstacles);
-    const currInside = isInsideObstacle(curr.x, curr.y, obstacles);
-
-    if (!prevInside && !currInside) {
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-    }
-
-    if (!currInside) {
-      drawRobot(x2, y2);
-    }
-
-    i++;
-    setTimeout(step, 100);
-  }
-
-  step();
+function getRandomColor() {
+  const colors = ["blue", "green", "purple", "orange", "teal"];
+  return colors[Math.floor(Math.random() * colors.length)];
 }
 
-function drawRobot(x, y) {
-  ctx.fillStyle = "#00cc66";
-  ctx.beginPath();
-  ctx.arc(x, y, 5, 0, 2 * Math.PI);
-  ctx.fill();
+function clearSimulations() {
+  document.getElementById("canvasContainer").innerHTML = "";
 }
+

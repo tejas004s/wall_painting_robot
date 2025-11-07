@@ -1,7 +1,7 @@
 import logging
 import os
-import time 
-from functools import wraps 
+import time
+from functools import wraps
 
 LOG_PATH = os.getenv("LOG_PATH", "logs/robot_api.log")
 
