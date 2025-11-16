@@ -14,6 +14,10 @@ A sophisticated trajectory planning system for autonomous wall painting robots. 
 
 ## Project Structure
 
+<img width="1920" height="1200" alt="Screenshot (87)" src="https://github.com/user-attachments/assets/307c2ebf-1345-422b-9179-c8bfcc2c42e8" />
+
+<img width="1920" height="1200" alt="Screenshot (88)" src="https://github.com/user-attachments/assets/43c2d9f0-10f7-4b68-8405-caca95940ab7" />
+
 ```
 wallpaint/
 ├── app/
